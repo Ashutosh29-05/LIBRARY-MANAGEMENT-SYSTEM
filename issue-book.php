@@ -8,30 +8,34 @@ if (strlen($_SESSION['alogin']) == 0) {
     exit();
 } else { 
 
-    $msg = "";
-    $error = "";
+    if (isset($_POST['issue'])) {
+        $studentid = strtoupper(trim($_POST['studentid']));
+        $bookid    = trim($_POST['bookid']); 
+        $aremark   = trim($_POST['aremark']); 
+        $aqty      = intval($_POST['aqty']);
 
-    if (isset($_POST['change'])) {
-        $password = md5($_POST['password']);
-        $newpassword = md5($_POST['newpassword']);
-        $username = $_SESSION['alogin'];
+        if ($aqty > 0) {
+            $sql = "INSERT INTO tblissuedbookdetails(StudentID, BookId, remark) VALUES(:studentid, :bookid, :aremark)";
+            $query = $dbh->prepare($sql);
+            $query->bindParam(':studentid', $studentid, PDO::PARAM_STR);
+            $query->bindParam(':bookid', $bookid, PDO::PARAM_STR);
+            $query->bindParam(':aremark', $aremark, PDO::PARAM_STR);
+            $query->execute();
+            $lastInsertId = $dbh->lastInsertId();
 
-        $sql = "SELECT Password FROM admin WHERE UserName = :username AND Password = :password";
-        $query = $dbh->prepare($sql);
-        $query->bindParam(':username', $username, PDO::PARAM_STR);
-        $query->bindParam(':password', $password, PDO::PARAM_STR);
-        $query->execute();
-        $results = $query->fetchAll(PDO::FETCH_OBJ);
-
-        if ($query->rowCount() > 0) {
-            $con = "UPDATE admin SET Password = :newpassword WHERE UserName = :username";
-            $chngpwd1 = $dbh->prepare($con);
-            $chngpwd1->bindParam(':username', $username, PDO::PARAM_STR);
-            $chngpwd1->bindParam(':newpassword', $newpassword, PDO::PARAM_STR);
-            $chngpwd1->execute();
-            $msg = "Your password has been changed successfully!";
+            if ($lastInsertId) {
+                $_SESSION['msg'] = "Book issued successfully!";
+                header('location:manage-issued-books.php');
+                exit();
+            } else {
+                $_SESSION['error'] = "Something went wrong. Please try again.";
+                header('location:manage-issued-books.php');
+                exit();
+            }
         } else {
-            $error = "Your current password is incorrect. Please try again.";
+            $_SESSION['error'] = "This book is currently out of stock or unavailable.";
+            header('location:manage-issued-books.php'); 
+            exit();  
         }
     }
 ?>
@@ -40,7 +44,7 @@ if (strlen($_SESSION['alogin']) == 0) {
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Online Library Management System | Change Password</title>
+    <title>Online Library Management System | Issue a New Book</title>
     
     <!-- Modern Bootstrap 5 & Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
@@ -137,13 +141,13 @@ if (strlen($_SESSION['alogin']) == 0) {
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
         }
 
-        .form-control {
+        .form-control, .form-select {
             border-radius: 10px;
             padding: 0.75rem 1rem;
             border-color: #cbd5e1;
         }
 
-        .form-control:focus {
+        .form-control:focus, .form-select:focus {
             border-color: #2563eb;
             box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
         }
@@ -281,16 +285,16 @@ if (strlen($_SESSION['alogin']) == 0) {
             </div>
 
             <!-- Issue Books Accordion -->
-            <a class="nav-link justify-content-between" data-bs-toggle="collapse" href="#issueMenu" role="button" aria-expanded="false">
+            <a class="nav-link justify-content-between active" data-bs-toggle="collapse" href="#issueMenu" role="button" aria-expanded="true">
                 <div class="d-flex align-items-center">
                     <i class="bi bi-arrow-left-right"></i>
                     <span>Issue Books</span>
                 </div>
                 <i class="bi bi-chevron-down small text-muted"></i>
             </a>
-            <div class="collapse" id="issueMenu">
+            <div class="collapse show" id="issueMenu">
                 <ul class="submenu">
-                    <li><a class="nav-link" href="issue-book.php"><i class="bi bi-plus-circle me-1 text-success"></i>Issue New Book</a></li>
+                    <li><a class="nav-link active" href="issue-book.php"><i class="bi bi-plus-circle me-1 text-success"></i>Issue New Book</a></li>
                     <li><a class="nav-link" href="manage-issued-books.php"><i class="bi bi-card-checklist me-1 text-secondary"></i>Manage Issued</a></li>
                 </ul>
             </div>
@@ -308,7 +312,7 @@ if (strlen($_SESSION['alogin']) == 0) {
     <span>Fine Rate Settings</span>
 </a>
             <!-- Change Password -->
-            <a class="nav-link active" href="change-password.php">
+            <a class="nav-link" href="change-password.php">
                 <i class="bi bi-key"></i>
                 <span>Change Password</span>
             </a>
@@ -329,83 +333,76 @@ if (strlen($_SESSION['alogin']) == 0) {
             <!-- Header Title -->
             <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center pb-4 mb-4 border-bottom gap-2">
                 <div>
-                    <h2 class="fw-bold text-dark mb-1">Admin Security Settings</h2>
-                    <p class="text-muted small mb-0">Update your administrator account password and credentials</p>
+                    <h2 class="fw-bold text-dark mb-1">Issue a New Book</h2>
+                    <p class="text-muted small mb-0">Record book issuance to a registered student with live verification</p>
                 </div>
                 <div>
-                    <span class="badge bg-light text-secondary border px-3 py-2 rounded-pill">
-                        <i class="bi bi-shield-lock text-primary me-1"></i> Admin Account: <strong><?php echo htmlentities($_SESSION['alogin']); ?></strong>
-                    </span>
+                    <a href="manage-issued-books.php" class="btn btn-outline-secondary rounded-pill px-3 py-2 small fw-semibold d-inline-flex align-items-center gap-2">
+                        <i class="bi bi-arrow-left"></i> View Issued Books
+                    </a>
                 </div>
             </div>
 
             <!-- Form Card Section -->
             <div class="row justify-content-center">
-                <div class="col-12 col-md-8 col-xl-6">
+                <div class="col-12 col-md-10 col-xl-8">
                     <div class="card form-card p-4 p-md-5">
-                        <div class="text-center mb-4">
+                        <div class="text-center mb-4 pb-2 border-bottom">
                             <div class="d-inline-flex p-3 rounded-circle bg-primary-subtle text-primary mb-3">
-                                <i class="bi bi-shield-lock-fill fs-3"></i>
+                                <i class="bi bi-journal-arrow-up fs-3"></i>
                             </div>
-                            <h4 class="fw-bold text-dark mb-1">Change Password</h4>
-                            <p class="text-muted small">Enter your current password and choose a secure new one</p>
+                            <h4 class="fw-bold text-dark mb-1">Issuance Form</h4>
+                            <p class="text-muted small">Verify student and book inventory before issuing</p>
                         </div>
 
-                        <!-- Success Alert -->
-                        <?php if (!empty($msg)): ?>
-                            <div class="alert alert-success d-flex align-items-center mb-4" role="alert">
-                                <i class="bi bi-check-circle-fill flex-shrink-0 me-2 fs-5"></i>
-                                <div><?php echo htmlspecialchars($msg); ?></div>
-                            </div>
-                        <?php endif; ?>
+                        <form method="post" autocomplete="off">
+                            <div class="row g-4">
+                                <!-- Student ID Field with Live Ajax Lookups -->
+                                <div class="col-12">
+                                    <label for="studentid" class="form-label small fw-semibold text-secondary">
+                                        Student ID <span class="text-danger">*</span>
+                                    </label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-person-vcard"></i></span>
+                                        <input type="text" class="form-control border-start-0 ps-0" id="studentid" name="studentid" onBlur="getstudent()" placeholder="e.g. SID001" required />
+                                        <span class="input-group-text bg-light border-start-0" id="studentLoader" style="display:none;">
+                                            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                                        </span>
+                                    </div>
+                                    <div id="get_student_name" class="mt-2"></div>
+                                </div>
 
-                        <!-- Error Alert -->
-                        <?php if (!empty($error)): ?>
-                            <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
-                                <i class="bi bi-exclamation-triangle-fill flex-shrink-0 me-2 fs-5"></i>
-                                <div><?php echo htmlspecialchars($error); ?></div>
-                            </div>
-                        <?php endif; ?>
+                                <!-- Book ISBN or Title Lookup -->
+                                <div class="col-12">
+                                    <label for="bookid" class="form-label small fw-semibold text-secondary">
+                                        ISBN Number or Book Title <span class="text-danger">*</span>
+                                    </label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-upc-scan"></i></span>
+                                        <input type="text" class="form-control border-start-0 ps-0" id="bookid" name="bookid" onBlur="getbook()" placeholder="Enter ISBN or search title" required />
+                                        <span class="input-group-text bg-light border-start-0" id="bookLoader" style="display:none;">
+                                            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                                        </span>
+                                    </div>
+                                    <div id="get_book_name" class="mt-2"></div>
+                                </div>
 
-                        <form method="post" name="chngpwd" onSubmit="return valid();" autocomplete="off">
-                            <!-- Current Password -->
-                            <div class="mb-3">
-                                <label for="password" class="form-label small fw-semibold text-secondary">
-                                    Current Password <span class="text-danger">*</span>
-                                </label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-key"></i></span>
-                                    <input type="password" class="form-control border-start-0 ps-0" id="password" name="password" placeholder="••••••••" required />
+                                <!-- Remark Textarea -->
+                                <div class="col-12">
+                                    <label for="aremark" class="form-label small fw-semibold text-secondary">
+                                        Issuance Remarks <span class="text-danger">*</span>
+                                    </label>
+                                    <textarea class="form-control" id="aremark" name="aremark" rows="3" placeholder="Condition of book, issue notes, or special permissions..." required></textarea>
                                 </div>
                             </div>
 
-                            <!-- New Password -->
-                            <div class="mb-3">
-                                <label for="newpassword" class="form-label small fw-semibold text-secondary">
-                                    New Password <span class="text-danger">*</span>
-                                </label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-shield-lock"></i></span>
-                                    <input type="password" class="form-control border-start-0 ps-0" id="newpassword" name="newpassword" placeholder="••••••••" required />
-                                </div>
+                            <!-- Form Actions -->
+                            <div class="mt-5 text-end border-top pt-4">
+                                <a href="manage-issued-books.php" class="btn btn-light rounded-pill px-4 py-2 me-2 fw-semibold">Cancel</a>
+                                <button type="submit" name="issue" id="submit" class="btn btn-primary btn-primary-custom rounded-pill text-white px-5 py-2">
+                                    <i class="bi bi-check2-circle me-1"></i> Issue Book
+                                </button>
                             </div>
-
-                            <!-- Confirm New Password -->
-                            <div class="mb-4">
-                                <label for="confirmpassword" class="form-label small fw-semibold text-secondary">
-                                    Confirm New Password <span class="text-danger">*</span>
-                                </label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-shield-check"></i></span>
-                                    <input type="password" class="form-control border-start-0 ps-0" id="confirmpassword" name="confirmpassword" placeholder="••••••••" required />
-                                </div>
-                            </div>
-
-                            <!-- Submit Button -->
-                            <button type="submit" name="change" class="btn btn-primary btn-primary-custom w-100 text-white d-flex align-items-center justify-content-center gap-2">
-                                <i class="bi bi-check2-circle fs-5"></i>
-                                <span>Update Password</span>
-                            </button>
                         </form>
                     </div>
                 </div>
@@ -418,7 +415,8 @@ if (strlen($_SESSION['alogin']) == 0) {
         </footer>
     </div>
 
-    <!-- Bootstrap 5 Bundle with Popper -->
+    <!-- Scripts: jQuery & Bootstrap 5 Bundle -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         const sidebar = document.getElementById('adminSidebar');
@@ -433,13 +431,44 @@ if (strlen($_SESSION['alogin']) == 0) {
         toggler.addEventListener('click', toggleSidebar);
         backdrop.addEventListener('click', toggleSidebar);
 
-        function valid() {
-            if (document.chngpwd.newpassword.value !== document.chngpwd.confirmpassword.value) {
-                alert("New Password and Confirm Password do not match!");
-                document.chngpwd.confirmpassword.focus();
-                return false;
+        // AJAX function for Student verification
+        function getstudent() {
+            var studentIdVal = $("#studentid").val();
+            if (studentIdVal.length > 0) {
+                $("#studentLoader").show();
+                jQuery.ajax({
+                    url: "get_student.php",
+                    data: 'studentid=' + studentIdVal,
+                    type: "POST",
+                    success: function(data) {
+                        $("#get_student_name").html(data);
+                        $("#studentLoader").hide();
+                    },
+                    error: function() {
+                        $("#studentLoader").hide();
+                    }
+                });
             }
-            return true;
+        }
+
+        // AJAX function for Book details verification
+        function getbook() {
+            var bookIdVal = $("#bookid").val();
+            if (bookIdVal.length > 0) {
+                $("#bookLoader").show();
+                jQuery.ajax({
+                    url: "get_book.php",
+                    data: 'bookid=' + bookIdVal,
+                    type: "POST",
+                    success: function(data) {
+                        $("#get_book_name").html(data);
+                        $("#bookLoader").hide();
+                    },
+                    error: function() {
+                        $("#bookLoader").hide();
+                    }
+                });
+            }
         }
     </script>
 </body>

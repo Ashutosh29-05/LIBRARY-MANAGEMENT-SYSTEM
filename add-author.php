@@ -8,30 +8,22 @@ if (strlen($_SESSION['alogin']) == 0) {
     exit();
 } else { 
 
-    $msg = "";
-    $error = "";
-
-    if (isset($_POST['change'])) {
-        $password = md5($_POST['password']);
-        $newpassword = md5($_POST['newpassword']);
-        $username = $_SESSION['alogin'];
-
-        $sql = "SELECT Password FROM admin WHERE UserName = :username AND Password = :password";
+    if (isset($_POST['create'])) {
+        $author = trim($_POST['author']);
+        $sql = "INSERT INTO tblauthors(AuthorName) VALUES(:author)";
         $query = $dbh->prepare($sql);
-        $query->bindParam(':username', $username, PDO::PARAM_STR);
-        $query->bindParam(':password', $password, PDO::PARAM_STR);
+        $query->bindParam(':author', $author, PDO::PARAM_STR);
         $query->execute();
-        $results = $query->fetchAll(PDO::FETCH_OBJ);
+        $lastInsertId = $dbh->lastInsertId();
 
-        if ($query->rowCount() > 0) {
-            $con = "UPDATE admin SET Password = :newpassword WHERE UserName = :username";
-            $chngpwd1 = $dbh->prepare($con);
-            $chngpwd1->bindParam(':username', $username, PDO::PARAM_STR);
-            $chngpwd1->bindParam(':newpassword', $newpassword, PDO::PARAM_STR);
-            $chngpwd1->execute();
-            $msg = "Your password has been changed successfully!";
+        if ($lastInsertId) {
+            $_SESSION['msg'] = "Author added successfully!";
+            header('location:manage-authors.php');
+            exit();
         } else {
-            $error = "Your current password is incorrect. Please try again.";
+            $_SESSION['error'] = "Something went wrong. Please try again.";
+            header('location:manage-authors.php');
+            exit();
         }
     }
 ?>
@@ -40,7 +32,7 @@ if (strlen($_SESSION['alogin']) == 0) {
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Online Library Management System | Change Password</title>
+    <title>Online Library Management System | Add Author</title>
     
     <!-- Modern Bootstrap 5 & Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
@@ -251,16 +243,16 @@ if (strlen($_SESSION['alogin']) == 0) {
             </div>
 
             <!-- Authors Accordion -->
-            <a class="nav-link justify-content-between" data-bs-toggle="collapse" href="#authMenu" role="button" aria-expanded="false">
+            <a class="nav-link justify-content-between active" data-bs-toggle="collapse" href="#authMenu" role="button" aria-expanded="true">
                 <div class="d-flex align-items-center">
                     <i class="bi bi-person-lines-fill"></i>
                     <span>Authors</span>
                 </div>
                 <i class="bi bi-chevron-down small text-muted"></i>
             </a>
-            <div class="collapse" id="authMenu">
+            <div class="collapse show" id="authMenu">
                 <ul class="submenu">
-                    <li><a class="nav-link" href="add-author.php"><i class="bi bi-plus me-1 text-primary"></i>Add Author</a></li>
+                    <li><a class="nav-link active" href="add-author.php"><i class="bi bi-plus me-1 text-primary"></i>Add Author</a></li>
                     <li><a class="nav-link" href="manage-authors.php"><i class="bi bi-gear me-1 text-secondary"></i>Manage Authors</a></li>
                 </ul>
             </div>
@@ -308,7 +300,7 @@ if (strlen($_SESSION['alogin']) == 0) {
     <span>Fine Rate Settings</span>
 </a>
             <!-- Change Password -->
-            <a class="nav-link active" href="change-password.php">
+            <a class="nav-link" href="change-password.php">
                 <i class="bi bi-key"></i>
                 <span>Change Password</span>
             </a>
@@ -329,13 +321,13 @@ if (strlen($_SESSION['alogin']) == 0) {
             <!-- Header Title -->
             <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center pb-4 mb-4 border-bottom gap-2">
                 <div>
-                    <h2 class="fw-bold text-dark mb-1">Admin Security Settings</h2>
-                    <p class="text-muted small mb-0">Update your administrator account password and credentials</p>
+                    <h2 class="fw-bold text-dark mb-1">Add Author</h2>
+                    <p class="text-muted small mb-0">Create and register a new author in the library catalog</p>
                 </div>
                 <div>
-                    <span class="badge bg-light text-secondary border px-3 py-2 rounded-pill">
-                        <i class="bi bi-shield-lock text-primary me-1"></i> Admin Account: <strong><?php echo htmlentities($_SESSION['alogin']); ?></strong>
-                    </span>
+                    <a href="manage-authors.php" class="btn btn-outline-secondary rounded-pill px-3 py-2 small fw-semibold d-inline-flex align-items-center gap-2">
+                        <i class="bi bi-arrow-left"></i> Back to Authors
+                    </a>
                 </div>
             </div>
 
@@ -345,66 +337,24 @@ if (strlen($_SESSION['alogin']) == 0) {
                     <div class="card form-card p-4 p-md-5">
                         <div class="text-center mb-4">
                             <div class="d-inline-flex p-3 rounded-circle bg-primary-subtle text-primary mb-3">
-                                <i class="bi bi-shield-lock-fill fs-3"></i>
+                                <i class="bi bi-person-plus-fill fs-3"></i>
                             </div>
-                            <h4 class="fw-bold text-dark mb-1">Change Password</h4>
-                            <p class="text-muted small">Enter your current password and choose a secure new one</p>
+                            <h4 class="fw-bold text-dark mb-1">Author Details</h4>
+                            <p class="text-muted small">Enter the author's official full name</p>
                         </div>
 
-                        <!-- Success Alert -->
-                        <?php if (!empty($msg)): ?>
-                            <div class="alert alert-success d-flex align-items-center mb-4" role="alert">
-                                <i class="bi bi-check-circle-fill flex-shrink-0 me-2 fs-5"></i>
-                                <div><?php echo htmlspecialchars($msg); ?></div>
-                            </div>
-                        <?php endif; ?>
-
-                        <!-- Error Alert -->
-                        <?php if (!empty($error)): ?>
-                            <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
-                                <i class="bi bi-exclamation-triangle-fill flex-shrink-0 me-2 fs-5"></i>
-                                <div><?php echo htmlspecialchars($error); ?></div>
-                            </div>
-                        <?php endif; ?>
-
-                        <form method="post" name="chngpwd" onSubmit="return valid();" autocomplete="off">
-                            <!-- Current Password -->
-                            <div class="mb-3">
-                                <label for="password" class="form-label small fw-semibold text-secondary">
-                                    Current Password <span class="text-danger">*</span>
-                                </label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-key"></i></span>
-                                    <input type="password" class="form-control border-start-0 ps-0" id="password" name="password" placeholder="••••••••" required />
-                                </div>
-                            </div>
-
-                            <!-- New Password -->
-                            <div class="mb-3">
-                                <label for="newpassword" class="form-label small fw-semibold text-secondary">
-                                    New Password <span class="text-danger">*</span>
-                                </label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-shield-lock"></i></span>
-                                    <input type="password" class="form-control border-start-0 ps-0" id="newpassword" name="newpassword" placeholder="••••••••" required />
-                                </div>
-                            </div>
-
-                            <!-- Confirm New Password -->
+                        <form method="post" autocomplete="off">
                             <div class="mb-4">
-                                <label for="confirmpassword" class="form-label small fw-semibold text-secondary">
-                                    Confirm New Password <span class="text-danger">*</span>
-                                </label>
+                                <label for="author" class="form-label small fw-semibold text-secondary">Author Name</label>
                                 <div class="input-group">
-                                    <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-shield-check"></i></span>
-                                    <input type="password" class="form-control border-start-0 ps-0" id="confirmpassword" name="confirmpassword" placeholder="••••••••" required />
+                                    <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-person"></i></span>
+                                    <input type="text" class="form-control border-start-0 ps-0" id="author" name="author" placeholder="e.g. J.K. Rowling, George Orwell" required />
                                 </div>
                             </div>
 
-                            <!-- Submit Button -->
-                            <button type="submit" name="change" class="btn btn-primary btn-primary-custom w-100 text-white d-flex align-items-center justify-content-center gap-2">
+                            <button type="submit" name="create" class="btn btn-primary btn-primary-custom w-100 text-white d-flex align-items-center justify-content-center gap-2">
                                 <i class="bi bi-check2-circle fs-5"></i>
-                                <span>Update Password</span>
+                                <span>Add Author</span>
                             </button>
                         </form>
                     </div>
@@ -432,15 +382,6 @@ if (strlen($_SESSION['alogin']) == 0) {
 
         toggler.addEventListener('click', toggleSidebar);
         backdrop.addEventListener('click', toggleSidebar);
-
-        function valid() {
-            if (document.chngpwd.newpassword.value !== document.chngpwd.confirmpassword.value) {
-                alert("New Password and Confirm Password do not match!");
-                document.chngpwd.confirmpassword.focus();
-                return false;
-            }
-            return true;
-        }
     </script>
 </body>
 </html>

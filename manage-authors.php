@@ -6,33 +6,16 @@ include('includes/config.php');
 if (strlen($_SESSION['alogin']) == 0) { 
     header('location:../adminlogin.php');
     exit();
-} else { 
-
-    $msg = "";
-    $error = "";
-
-    if (isset($_POST['change'])) {
-        $password = md5($_POST['password']);
-        $newpassword = md5($_POST['newpassword']);
-        $username = $_SESSION['alogin'];
-
-        $sql = "SELECT Password FROM admin WHERE UserName = :username AND Password = :password";
+} else {
+    if (isset($_GET['del'])) {
+        $id = intval($_GET['del']);
+        $sql = "DELETE FROM tblauthors WHERE id = :id";
         $query = $dbh->prepare($sql);
-        $query->bindParam(':username', $username, PDO::PARAM_STR);
-        $query->bindParam(':password', $password, PDO::PARAM_STR);
+        $query->bindParam(':id', $id, PDO::PARAM_STR);
         $query->execute();
-        $results = $query->fetchAll(PDO::FETCH_OBJ);
-
-        if ($query->rowCount() > 0) {
-            $con = "UPDATE admin SET Password = :newpassword WHERE UserName = :username";
-            $chngpwd1 = $dbh->prepare($con);
-            $chngpwd1->bindParam(':username', $username, PDO::PARAM_STR);
-            $chngpwd1->bindParam(':newpassword', $newpassword, PDO::PARAM_STR);
-            $chngpwd1->execute();
-            $msg = "Your password has been changed successfully!";
-        } else {
-            $error = "Your current password is incorrect. Please try again.";
-        }
+        $_SESSION['delmsg'] = "Author deleted successfully!";
+        header('location:manage-authors.php');
+        exit();
     }
 ?>
 <!DOCTYPE html>
@@ -40,11 +23,13 @@ if (strlen($_SESSION['alogin']) == 0) {
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Online Library Management System | Change Password</title>
+    <title>Online Library Management System | Manage Authors</title>
     
     <!-- Modern Bootstrap 5 & Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" />
+    <!-- DataTables Bootstrap 5 CSS -->
+    <link href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
     <style>
@@ -129,37 +114,17 @@ if (strlen($_SESSION['alogin']) == 0) {
             padding: 2.5rem 3rem;
         }
 
-        /* --- Form Card Styling --- */
-        .form-card {
+        /* --- Card & Table Styling --- */
+        .table-card {
             border: 1px solid rgba(226, 232, 240, 0.8);
             border-radius: 16px;
             background: #ffffff;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
         }
 
-        .form-control {
-            border-radius: 10px;
-            padding: 0.75rem 1rem;
-            border-color: #cbd5e1;
-        }
-
-        .form-control:focus {
-            border-color: #2563eb;
-            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
-        }
-
-        .btn-primary-custom {
-            background-color: #2563eb;
-            border: none;
-            border-radius: 10px;
-            padding: 0.75rem 1.5rem;
-            font-weight: 600;
-            transition: all 0.2s ease;
-        }
-
-        .btn-primary-custom:hover {
-            background-color: #1d4ed8;
-            transform: translateY(-1px);
+        .table > :not(caption) > * > * {
+            padding: 1rem 1.25rem;
+            vertical-align: middle;
         }
 
         /* Mobile Drawer */
@@ -251,17 +216,17 @@ if (strlen($_SESSION['alogin']) == 0) {
             </div>
 
             <!-- Authors Accordion -->
-            <a class="nav-link justify-content-between" data-bs-toggle="collapse" href="#authMenu" role="button" aria-expanded="false">
+            <a class="nav-link justify-content-between active" data-bs-toggle="collapse" href="#authMenu" role="button" aria-expanded="true">
                 <div class="d-flex align-items-center">
                     <i class="bi bi-person-lines-fill"></i>
                     <span>Authors</span>
                 </div>
                 <i class="bi bi-chevron-down small text-muted"></i>
             </a>
-            <div class="collapse" id="authMenu">
+            <div class="collapse show" id="authMenu">
                 <ul class="submenu">
                     <li><a class="nav-link" href="add-author.php"><i class="bi bi-plus me-1 text-primary"></i>Add Author</a></li>
-                    <li><a class="nav-link" href="manage-authors.php"><i class="bi bi-gear me-1 text-secondary"></i>Manage Authors</a></li>
+                    <li><a class="nav-link active" href="manage-authors.php"><i class="bi bi-gear me-1 text-secondary"></i>Manage Authors</a></li>
                 </ul>
             </div>
 
@@ -308,7 +273,7 @@ if (strlen($_SESSION['alogin']) == 0) {
     <span>Fine Rate Settings</span>
 </a>
             <!-- Change Password -->
-            <a class="nav-link active" href="change-password.php">
+            <a class="nav-link" href="change-password.php">
                 <i class="bi bi-key"></i>
                 <span>Change Password</span>
             </a>
@@ -329,85 +294,98 @@ if (strlen($_SESSION['alogin']) == 0) {
             <!-- Header Title -->
             <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center pb-4 mb-4 border-bottom gap-2">
                 <div>
-                    <h2 class="fw-bold text-dark mb-1">Admin Security Settings</h2>
-                    <p class="text-muted small mb-0">Update your administrator account password and credentials</p>
+                    <h2 class="fw-bold text-dark mb-1">Manage Authors</h2>
+                    <p class="text-muted small mb-0">View, edit, and manage all registered authors in the catalog</p>
                 </div>
                 <div>
-                    <span class="badge bg-light text-secondary border px-3 py-2 rounded-pill">
-                        <i class="bi bi-shield-lock text-primary me-1"></i> Admin Account: <strong><?php echo htmlentities($_SESSION['alogin']); ?></strong>
-                    </span>
+                    <a href="add-author.php" class="btn btn-primary rounded-pill px-4 py-2 small fw-semibold d-inline-flex align-items-center gap-2">
+                        <i class="bi bi-plus-circle"></i> Add New Author
+                    </a>
                 </div>
             </div>
 
-            <!-- Form Card Section -->
-            <div class="row justify-content-center">
-                <div class="col-12 col-md-8 col-xl-6">
-                    <div class="card form-card p-4 p-md-5">
-                        <div class="text-center mb-4">
-                            <div class="d-inline-flex p-3 rounded-circle bg-primary-subtle text-primary mb-3">
-                                <i class="bi bi-shield-lock-fill fs-3"></i>
-                            </div>
-                            <h4 class="fw-bold text-dark mb-1">Change Password</h4>
-                            <p class="text-muted small">Enter your current password and choose a secure new one</p>
-                        </div>
+            <!-- Alert Notifications -->
+            <?php if (!empty($_SESSION['error'])): ?>
+                <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill flex-shrink-0 me-2"></i>
+                    <div><strong>Error:</strong> <?php echo htmlentities($_SESSION['error']); $_SESSION['error'] = ""; ?></div>
+                </div>
+            <?php endif; ?>
 
-                        <!-- Success Alert -->
-                        <?php if (!empty($msg)): ?>
-                            <div class="alert alert-success d-flex align-items-center mb-4" role="alert">
-                                <i class="bi bi-check-circle-fill flex-shrink-0 me-2 fs-5"></i>
-                                <div><?php echo htmlspecialchars($msg); ?></div>
-                            </div>
-                        <?php endif; ?>
+            <?php if (!empty($_SESSION['msg'])): ?>
+                <div class="alert alert-success d-flex align-items-center mb-4" role="alert">
+                    <i class="bi bi-check-circle-fill flex-shrink-0 me-2"></i>
+                    <div><strong>Success:</strong> <?php echo htmlentities($_SESSION['msg']); $_SESSION['msg'] = ""; ?></div>
+                </div>
+            <?php endif; ?>
 
-                        <!-- Error Alert -->
-                        <?php if (!empty($error)): ?>
-                            <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
-                                <i class="bi bi-exclamation-triangle-fill flex-shrink-0 me-2 fs-5"></i>
-                                <div><?php echo htmlspecialchars($error); ?></div>
-                            </div>
-                        <?php endif; ?>
+            <?php if (!empty($_SESSION['updatemsg'])): ?>
+                <div class="alert alert-success d-flex align-items-center mb-4" role="alert">
+                    <i class="bi bi-check-circle-fill flex-shrink-0 me-2"></i>
+                    <div><strong>Success:</strong> <?php echo htmlentities($_SESSION['updatemsg']); $_SESSION['updatemsg'] = ""; ?></div>
+                </div>
+            <?php endif; ?>
 
-                        <form method="post" name="chngpwd" onSubmit="return valid();" autocomplete="off">
-                            <!-- Current Password -->
-                            <div class="mb-3">
-                                <label for="password" class="form-label small fw-semibold text-secondary">
-                                    Current Password <span class="text-danger">*</span>
-                                </label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-key"></i></span>
-                                    <input type="password" class="form-control border-start-0 ps-0" id="password" name="password" placeholder="••••••••" required />
-                                </div>
-                            </div>
+            <?php if (!empty($_SESSION['delmsg'])): ?>
+                <div class="alert alert-success d-flex align-items-center mb-4" role="alert">
+                    <i class="bi bi-check-circle-fill flex-shrink-0 me-2"></i>
+                    <div><strong>Success:</strong> <?php echo htmlentities($_SESSION['delmsg']); $_SESSION['delmsg'] = ""; ?></div>
+                </div>
+            <?php endif; ?>
 
-                            <!-- New Password -->
-                            <div class="mb-3">
-                                <label for="newpassword" class="form-label small fw-semibold text-secondary">
-                                    New Password <span class="text-danger">*</span>
-                                </label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-shield-lock"></i></span>
-                                    <input type="password" class="form-control border-start-0 ps-0" id="newpassword" name="newpassword" placeholder="••••••••" required />
-                                </div>
-                            </div>
-
-                            <!-- Confirm New Password -->
-                            <div class="mb-4">
-                                <label for="confirmpassword" class="form-label small fw-semibold text-secondary">
-                                    Confirm New Password <span class="text-danger">*</span>
-                                </label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-shield-check"></i></span>
-                                    <input type="password" class="form-control border-start-0 ps-0" id="confirmpassword" name="confirmpassword" placeholder="••••••••" required />
-                                </div>
-                            </div>
-
-                            <!-- Submit Button -->
-                            <button type="submit" name="change" class="btn btn-primary btn-primary-custom w-100 text-white d-flex align-items-center justify-content-center gap-2">
-                                <i class="bi bi-check2-circle fs-5"></i>
-                                <span>Update Password</span>
-                            </button>
-                        </form>
-                    </div>
+            <!-- Authors Table Card -->
+            <div class="card table-card p-4">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0" id="dataTables-example">
+                        <thead class="table-light text-uppercase fs-7 text-secondary">
+                            <tr>
+                                <th scope="col">#</th>
+                                <th scope="col">Author Name</th>
+                                <th scope="col">Creation Date</th>
+                                <th scope="col">Updation Date</th>
+                                <th scope="col" class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php 
+                            $sql = "SELECT * FROM tblauthors";
+                            $query = $dbh->prepare($sql);
+                            $query->execute();
+                            $results = $query->fetchAll(PDO::FETCH_OBJ);
+                            $cnt = 1;
+                            if ($query->rowCount() > 0) {
+                                foreach ($results as $result) {
+                            ?>  
+                            <tr>
+                                <td class="fw-semibold text-muted"><?php echo htmlentities($cnt); ?></td>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
+                                            <i class="bi bi-person"></i>
+                                        </div>
+                                        <span class="fw-bold text-dark"><?php echo htmlentities($result->AuthorName); ?></span>
+                                    </div>
+                                </td>
+                                <td><span class="small text-muted"><?php echo htmlentities($result->creationDate); ?></span></td>
+                                <td><span class="small text-muted"><?php echo htmlentities($result->UpdationDate); ?></span></td>
+                                <td class="text-end">
+                                    <div class="d-flex justify-content-end gap-2">
+                                        <a href="edit-author.php?athrid=<?php echo htmlentities($result->id); ?>" class="btn btn-outline-primary btn-sm rounded-pill px-3 py-1 d-inline-flex align-items-center gap-1">
+                                            <i class="bi bi-pencil-square"></i> Edit
+                                        </a>
+                                        <a href="manage-authors.php?del=<?php echo htmlentities($result->id); ?>" onclick="return confirm('Are you sure you want to delete this author?');" class="btn btn-outline-danger btn-sm rounded-pill px-3 py-1 d-inline-flex align-items-center gap-1">
+                                            <i class="bi bi-trash"></i> Delete
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            <?php 
+                                    $cnt++;
+                                }
+                            } 
+                            ?>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </main>
@@ -418,8 +396,11 @@ if (strlen($_SESSION['alogin']) == 0) {
         </footer>
     </div>
 
-    <!-- Bootstrap 5 Bundle with Popper -->
+    <!-- Scripts: jQuery, Bootstrap 5 Bundle & DataTables -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
     <script>
         const sidebar = document.getElementById('adminSidebar');
         const toggler = document.getElementById('sidebarToggler');
@@ -433,14 +414,16 @@ if (strlen($_SESSION['alogin']) == 0) {
         toggler.addEventListener('click', toggleSidebar);
         backdrop.addEventListener('click', toggleSidebar);
 
-        function valid() {
-            if (document.chngpwd.newpassword.value !== document.chngpwd.confirmpassword.value) {
-                alert("New Password and Confirm Password do not match!");
-                document.chngpwd.confirmpassword.focus();
-                return false;
-            }
-            return true;
-        }
+        $(document).ready(function() {
+            $('#dataTables-example').DataTable({
+                responsive: true,
+                pageLength: 10,
+                language: {
+                    search: "_INPUT_",
+                    searchPlaceholder: "Search authors..."
+                }
+            });
+        });
     </script>
 </body>
 </html>

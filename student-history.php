@@ -8,43 +8,27 @@ if (strlen($_SESSION['alogin']) == 0) {
     exit();
 } else { 
 
-    $msg = "";
-    $error = "";
+    $sid = trim($_GET['stdid']);
 
-    if (isset($_POST['change'])) {
-        $password = md5($_POST['password']);
-        $newpassword = md5($_POST['newpassword']);
-        $username = $_SESSION['alogin'];
-
-        $sql = "SELECT Password FROM admin WHERE UserName = :username AND Password = :password";
-        $query = $dbh->prepare($sql);
-        $query->bindParam(':username', $username, PDO::PARAM_STR);
-        $query->bindParam(':password', $password, PDO::PARAM_STR);
-        $query->execute();
-        $results = $query->fetchAll(PDO::FETCH_OBJ);
-
-        if ($query->rowCount() > 0) {
-            $con = "UPDATE admin SET Password = :newpassword WHERE UserName = :username";
-            $chngpwd1 = $dbh->prepare($con);
-            $chngpwd1->bindParam(':username', $username, PDO::PARAM_STR);
-            $chngpwd1->bindParam(':newpassword', $newpassword, PDO::PARAM_STR);
-            $chngpwd1->execute();
-            $msg = "Your password has been changed successfully!";
-        } else {
-            $error = "Your current password is incorrect. Please try again.";
-        }
-    }
+    // Fetch Student Info
+    $sql_std = "SELECT * FROM tblstudents WHERE StudentId = :sid";
+    $query_std = $dbh->prepare($sql_std);
+    $query_std->bindParam(':sid', $sid, PDO::PARAM_STR);
+    $query_std->execute();
+    $student = $query_std->fetch(PDO::FETCH_OBJ);
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Online Library Management System | Change Password</title>
+    <title>Online Library Management System | Student Borrowing History</title>
     
     <!-- Modern Bootstrap 5 & Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" />
+    <!-- DataTables Bootstrap 5 CSS -->
+    <link href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
     <style>
@@ -129,37 +113,25 @@ if (strlen($_SESSION['alogin']) == 0) {
             padding: 2.5rem 3rem;
         }
 
-        /* --- Form Card Styling --- */
-        .form-card {
+        /* --- Card & Table Styling --- */
+        .profile-card, .table-card {
             border: 1px solid rgba(226, 232, 240, 0.8);
             border-radius: 16px;
             background: #ffffff;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
         }
 
-        .form-control {
-            border-radius: 10px;
-            padding: 0.75rem 1rem;
-            border-color: #cbd5e1;
+        .table > :not(caption) > * > * {
+            padding: 1rem 1.25rem;
+            vertical-align: middle;
         }
 
-        .form-control:focus {
-            border-color: #2563eb;
-            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
-        }
-
-        .btn-primary-custom {
-            background-color: #2563eb;
-            border: none;
-            border-radius: 10px;
-            padding: 0.75rem 1.5rem;
-            font-weight: 600;
-            transition: all 0.2s ease;
-        }
-
-        .btn-primary-custom:hover {
-            background-color: #1d4ed8;
-            transform: translateY(-1px);
+        .book-thumb {
+            width: 44px;
+            height: 60px;
+            object-fit: cover;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
         }
 
         /* Mobile Drawer */
@@ -298,7 +270,7 @@ if (strlen($_SESSION['alogin']) == 0) {
             <div class="text-uppercase small fw-bold text-muted px-2 mt-4 mb-2" style="font-size: 0.75rem; letter-spacing: 0.05em;">Management</div>
 
             <!-- Reg Students -->
-            <a class="nav-link" href="reg-students.php">
+            <a class="nav-link active" href="reg-students.php">
                 <i class="bi bi-mortarboard"></i>
                 <span>Registered Students</span>
             </a>
@@ -308,7 +280,7 @@ if (strlen($_SESSION['alogin']) == 0) {
     <span>Fine Rate Settings</span>
 </a>
             <!-- Change Password -->
-            <a class="nav-link active" href="change-password.php">
+            <a class="nav-link" href="change-password.php">
                 <i class="bi bi-key"></i>
                 <span>Change Password</span>
             </a>
@@ -329,85 +301,129 @@ if (strlen($_SESSION['alogin']) == 0) {
             <!-- Header Title -->
             <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center pb-4 mb-4 border-bottom gap-2">
                 <div>
-                    <h2 class="fw-bold text-dark mb-1">Admin Security Settings</h2>
-                    <p class="text-muted small mb-0">Update your administrator account password and credentials</p>
+                    <h2 class="fw-bold text-dark mb-1">Borrowing History</h2>
+                    <p class="text-muted small mb-0">Complete historical issuance and return ledger for student ID: <strong>#<?php echo htmlentities($sid); ?></strong></p>
                 </div>
                 <div>
-                    <span class="badge bg-light text-secondary border px-3 py-2 rounded-pill">
-                        <i class="bi bi-shield-lock text-primary me-1"></i> Admin Account: <strong><?php echo htmlentities($_SESSION['alogin']); ?></strong>
-                    </span>
+                    <a href="reg-students.php" class="btn btn-outline-secondary rounded-pill px-3 py-2 small fw-semibold d-inline-flex align-items-center gap-2">
+                        <i class="bi bi-arrow-left"></i> Back to Students
+                    </a>
                 </div>
             </div>
 
-            <!-- Form Card Section -->
-            <div class="row justify-content-center">
-                <div class="col-12 col-md-8 col-xl-6">
-                    <div class="card form-card p-4 p-md-5">
-                        <div class="text-center mb-4">
-                            <div class="d-inline-flex p-3 rounded-circle bg-primary-subtle text-primary mb-3">
-                                <i class="bi bi-shield-lock-fill fs-3"></i>
-                            </div>
-                            <h4 class="fw-bold text-dark mb-1">Change Password</h4>
-                            <p class="text-muted small">Enter your current password and choose a secure new one</p>
+            <!-- Student Profile Summary Card -->
+            <?php if ($student): ?>
+            <div class="card profile-card p-4 mb-4">
+                <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center" style="width: 52px; height: 52px;">
+                            <i class="bi bi-person-fill fs-3"></i>
                         </div>
-
-                        <!-- Success Alert -->
-                        <?php if (!empty($msg)): ?>
-                            <div class="alert alert-success d-flex align-items-center mb-4" role="alert">
-                                <i class="bi bi-check-circle-fill flex-shrink-0 me-2 fs-5"></i>
-                                <div><?php echo htmlspecialchars($msg); ?></div>
+                        <div>
+                            <h4 class="fw-bold text-dark mb-0"><?php echo htmlentities($student->FullName); ?></h4>
+                            <div class="d-flex flex-wrap gap-3 mt-1 small text-secondary">
+                                <span><i class="bi bi-vcard me-1"></i><strong>ID:</strong> <?php echo htmlentities($student->StudentId); ?></span>
+                                <span><i class="bi bi-envelope me-1"></i><?php echo htmlentities($student->EmailId); ?></span>
+                                <span><i class="bi bi-telephone me-1"></i><?php echo htmlentities($student->MobileNumber); ?></span>
                             </div>
-                        <?php endif; ?>
-
-                        <!-- Error Alert -->
-                        <?php if (!empty($error)): ?>
-                            <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
-                                <i class="bi bi-exclamation-triangle-fill flex-shrink-0 me-2 fs-5"></i>
-                                <div><?php echo htmlspecialchars($error); ?></div>
-                            </div>
-                        <?php endif; ?>
-
-                        <form method="post" name="chngpwd" onSubmit="return valid();" autocomplete="off">
-                            <!-- Current Password -->
-                            <div class="mb-3">
-                                <label for="password" class="form-label small fw-semibold text-secondary">
-                                    Current Password <span class="text-danger">*</span>
-                                </label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-key"></i></span>
-                                    <input type="password" class="form-control border-start-0 ps-0" id="password" name="password" placeholder="••••••••" required />
-                                </div>
-                            </div>
-
-                            <!-- New Password -->
-                            <div class="mb-3">
-                                <label for="newpassword" class="form-label small fw-semibold text-secondary">
-                                    New Password <span class="text-danger">*</span>
-                                </label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-shield-lock"></i></span>
-                                    <input type="password" class="form-control border-start-0 ps-0" id="newpassword" name="newpassword" placeholder="••••••••" required />
-                                </div>
-                            </div>
-
-                            <!-- Confirm New Password -->
-                            <div class="mb-4">
-                                <label for="confirmpassword" class="form-label small fw-semibold text-secondary">
-                                    Confirm New Password <span class="text-danger">*</span>
-                                </label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-shield-check"></i></span>
-                                    <input type="password" class="form-control border-start-0 ps-0" id="confirmpassword" name="confirmpassword" placeholder="••••••••" required />
-                                </div>
-                            </div>
-
-                            <!-- Submit Button -->
-                            <button type="submit" name="change" class="btn btn-primary btn-primary-custom w-100 text-white d-flex align-items-center justify-content-center gap-2">
-                                <i class="bi bi-check2-circle fs-5"></i>
-                                <span>Update Password</span>
-                            </button>
-                        </form>
+                        </div>
                     </div>
+                    <div>
+                        <?php if ($student->Status == 1): ?>
+                            <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 rounded-pill">
+                                <i class="bi bi-check-circle-fill me-1"></i> Active Account
+                            </span>
+                        <?php else: ?>
+                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-3 py-2 rounded-pill">
+                                <i class="bi bi-slash-circle me-1"></i> Suspended Account
+                            </span>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+            <?php endif; ?>
+
+            <!-- History Table Card -->
+            <div class="card table-card p-4">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0" id="dataTables-example">
+                        <thead class="table-light text-uppercase fs-7 text-secondary">
+                            <tr>
+                                <th scope="col">#</th>
+                                <th scope="col">Book Name</th>
+                                <th scope="col">ISBN</th>
+                                <th scope="col">Issued Date</th>
+                                <th scope="col">Return Date</th>
+                                <th scope="col">Fine (₹)</th>
+                                <th scope="col" class="text-end">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php 
+                            $sql = "SELECT tblbooks.BookName, tblbooks.ISBNNumber, tblbooks.bookImage, tblissuedbookdetails.IssuesDate, tblissuedbookdetails.ReturnDate, tblissuedbookdetails.fine, tblissuedbookdetails.RetrunStatus, tblissuedbookdetails.id as rid 
+                                    FROM tblissuedbookdetails 
+                                    JOIN tblstudents ON tblstudents.StudentId = tblissuedbookdetails.StudentId 
+                                    JOIN tblbooks ON tblbooks.id = tblissuedbookdetails.BookId 
+                                    WHERE tblstudents.StudentId = :sid 
+                                    ORDER BY tblissuedbookdetails.id DESC";
+                            $query = $dbh->prepare($sql);
+                            $query->bindParam(':sid', $sid, PDO::PARAM_STR);
+                            $query->execute();
+                            $results = $query->fetchAll(PDO::FETCH_OBJ);
+                            $cnt = 1;
+
+                            if ($query->rowCount() > 0) {
+                                foreach ($results as $result) {
+                            ?>  
+                            <tr>
+                                <td class="fw-semibold text-muted"><?php echo htmlentities($cnt); ?></td>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <img src="bookimg/<?php echo htmlentities($result->bookImage); ?>" class="book-thumb" alt="<?php echo htmlentities($result->BookName); ?>" />
+                                        <span class="fw-bold text-dark"><?php echo htmlentities($result->BookName); ?></span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <code class="text-primary small fw-semibold"><?php echo htmlentities($result->ISBNNumber); ?></code>
+                                </td>
+                                <td>
+                                    <span class="small text-muted"><i class="bi bi-calendar3 me-1"></i><?php echo htmlentities($result->IssuesDate); ?></span>
+                                </td>
+                                <td>
+                                    <?php if (empty($result->ReturnDate)): ?>
+                                        <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1">
+                                            Not Returned Yet
+                                        </span>
+                                    <?php else: ?>
+                                        <span class="small text-secondary"><i class="bi bi-calendar-check me-1"></i><?php echo htmlentities($result->ReturnDate); ?></span>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php if (empty($result->ReturnDate)): ?>
+                                        <span class="text-muted small">—</span>
+                                    <?php else: ?>
+                                        <span class="fw-bold text-danger"><?php echo !empty($result->fine) ? '₹' . htmlentities($result->fine) : '$0'; ?></span>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="text-end">
+                                    <?php if ($result->RetrunStatus == 1): ?>
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-1">
+                                            <i class="bi bi-check2-circle me-1"></i> Returned
+                                        </span>
+                                    <?php else: ?>
+                                        <a href="update-issue-bookdeails.php?rid=<?php echo htmlentities($result->rid); ?>" class="btn btn-outline-warning btn-sm rounded-pill px-3 py-1 d-inline-flex align-items-center gap-1">
+                                            <i class="bi bi-arrow-return-left"></i> Return Book
+                                        </a>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                            <?php 
+                                    $cnt++;
+                                }
+                            } 
+                            ?>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </main>
@@ -418,8 +434,11 @@ if (strlen($_SESSION['alogin']) == 0) {
         </footer>
     </div>
 
-    <!-- Bootstrap 5 Bundle with Popper -->
+    <!-- Scripts: jQuery, Bootstrap 5 Bundle & DataTables -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
     <script>
         const sidebar = document.getElementById('adminSidebar');
         const toggler = document.getElementById('sidebarToggler');
@@ -433,14 +452,16 @@ if (strlen($_SESSION['alogin']) == 0) {
         toggler.addEventListener('click', toggleSidebar);
         backdrop.addEventListener('click', toggleSidebar);
 
-        function valid() {
-            if (document.chngpwd.newpassword.value !== document.chngpwd.confirmpassword.value) {
-                alert("New Password and Confirm Password do not match!");
-                document.chngpwd.confirmpassword.focus();
-                return false;
-            }
-            return true;
-        }
+        $(document).ready(function() {
+            $('#dataTables-example').DataTable({
+                responsive: true,
+                pageLength: 10,
+                language: {
+                    search: "_INPUT_",
+                    searchPlaceholder: "Search student history..."
+                }
+            });
+        });
     </script>
 </body>
 </html>
